@@ -11,5 +11,6 @@ viruscontrol-mod.dylib: viruscontrol.dylib virusclient-fake.dylib
 		viruscontrol-mod.dylib 
 
 clean:
-	rm viruscontrol-mod.dylib
-	rm test
+	rm -f viruscontrol-mod.dylib
+	rm -f virusclient-fake.dylib
+	rm -f test
