@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <string.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <assert.h>
@@ -48,20 +49,25 @@ struct AEffect {
 };
 
 static intptr_t hostcallback(void *effect, int32_t op, int32_t idx, int32_t v, void* ptr, float opt) {
-    printf("    [HOST CALLBACK] %p %d %d %d %p %f\n", effect, op, idx, v, ptr, opt);
+    char *ptr_char = (char*)ptr;
+
+    printf("    [HOST CALLBACK] %d %d %d %p %f\n", op, idx, v, ptr, opt);
     switch (op) {
         case 1:
             printf("        audio master version\n");
             return 2400;
         case 32:
             printf("        get vendor string\n");
-            return (intptr_t)"vendor";
+            strcpy(ptr, "vendor");
+            return 0;
+
         case 33:
             printf("        get product string\n");
-            return (intptr_t)"product";
+            strcpy(ptr, "product");
+            return 0;
         case 34:
             printf("        get version string\n");
-            return (intptr_t)"version";
+            return 0;
         case 35:
             printf("        audio master vendor specific\n");
             return 0;
