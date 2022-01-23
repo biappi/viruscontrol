@@ -1,3 +1,6 @@
+CFLAGS := -g
+CXXFLAGS := -g
+
 all: test viruscontrol-mod.dylib
 
 virusclient-fake.dylib: virusclient.cpp
