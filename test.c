@@ -46,13 +46,26 @@ struct AEffect {
 static intptr_t hostcallback(void *effect, int32_t op, int32_t idx, int32_t v, void* ptr, float opt) {
     printf("    [HOST CALLBACK] %p %d %d %d %p %f\n", effect, op, idx, v, ptr, opt);
     switch (op) {
-        case 1: // audio master version
+        case 1:
+            printf("        audio master version\n");
             return 2400;
-
-        case 35: // audio master vendor specific
+        case 32:
+            printf("        get vendor string\n");
+            return (intptr_t)"vendor";
+        case 33:
+            printf("        get product string\n");
+            return (intptr_t)"product";
+        case 34:
+            printf("        get version string\n");
+            return (intptr_t)"version";
+        case 35:
+            printf("        audio master vendor specific\n");
             return 0;
-
-        case 37: // audio master can do
+        case 37:
+            printf("        audio master can do > %s\n", (char*)ptr);
+            return 0;
+        case 38:
+            printf("        get language\n");
             return 0;
 
         default:
