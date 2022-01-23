@@ -82,6 +82,16 @@ static intptr_t hostcallback(void *effect, int32_t op, int32_t idx, int32_t v, v
     }
 }
 
+
+static void set_parameter(struct AEffect* effect, int32_t index, float parameter) {
+    printf("set parameter: %d %f\n", index, parameter);
+}
+
+static float get_parameter(struct AEffect* effect, int32_t index) {
+    printf("get parameter: %d\n", index);
+    return 0;
+}
+
 static void hotpatch(void *target, void *replacement)
 {
     void *page = (void *)((uintptr_t)target & ~0xfff);
@@ -169,8 +179,14 @@ int main() {
 
     printf("instantiating plugin\n");
 
-    struct AStruct *plug = plugin_main(&hostcallback);
+    struct AEffect *plug = plugin_main(&hostcallback);
     printf("    plugin at:      %p\n", plug);
+
+    plug->setParameter = set_parameter;
+    plug->getParameter = get_parameter;
+
+    printf("opening plugin\n");
+    plug->dispatcher(plug, 0 /* effOpen */, 0, 0, NULL, 0);
 
     return 0;
 }
