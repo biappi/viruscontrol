@@ -4,7 +4,6 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
-#include <assert.h>
 
 struct AEffect;
 
@@ -85,9 +84,6 @@ static intptr_t hostcallback(void *effect, int32_t op, int32_t idx, int32_t v, v
 
 static void hotpatch(void *target, void *replacement)
 {
-    // 8-byte aligned?
-    assert(((uintptr_t)target & 0x07) == 0);
-
     void *page = (void *)((uintptr_t)target & ~0xfff);
     mprotect(page, 4096, PROT_WRITE | PROT_EXEC);
 
@@ -108,6 +104,11 @@ void loggamelo(char *msg, ...) {
     va_start(valist, msg);
     vprintf(msg, valist);
     va_end(valist);
+}
+
+void my_path_expand(char *dst, char *src, size_t size) {
+    printf("PATH EXPAND: %s\n", src);
+    strncpy(dst, src, size);
 }
 
 int main() {
@@ -155,6 +156,7 @@ int main() {
 
     printf("patching log func\n");
     hotpatch(base + 0x0f5500, &loggamelo);
+    hotpatch(base + 0x101276, &my_path_expand);
 
     printf("getting VSTPluginMain\n");
     void* (*plugin_main)(void *) = dlsym(h, "VSTPluginMain");
