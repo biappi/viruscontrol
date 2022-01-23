@@ -1,5 +1,9 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <stdarg.h>
 #include <dlfcn.h>
+#include <sys/mman.h>
+#include <assert.h>
 
 struct AEffect;
 
@@ -73,6 +77,33 @@ static intptr_t hostcallback(void *effect, int32_t op, int32_t idx, int32_t v, v
     }
 }
 
+static void hotpatch(void *target, void *replacement)
+{
+    // 8-byte aligned?
+    assert(((uintptr_t)target & 0x07) == 0);
+
+    void *page = (void *)((uintptr_t)target & ~0xfff);
+    mprotect(page, 4096, PROT_WRITE | PROT_EXEC);
+
+    uint32_t rel = (char *)replacement - (char *)target - 5;
+
+    union {
+        uint8_t bytes[8];
+        uint64_t value;
+    } instruction = { {0xe9, rel >> 0, rel >> 8, rel >> 16, rel >> 24} };
+
+    *(uint64_t *)target = instruction.value;
+    mprotect(page, 4096, PROT_EXEC);
+}
+
+void loggamelo(char *msg, ...) {
+    va_list valist;
+
+    va_start(valist, msg);
+    vprintf(msg, valist);
+    va_end(valist);
+}
+
 int main() {
     printf("opening lib\n");
     void *h = dlopen("viruscontrol-mod.dylib", RTLD_LAZY);
@@ -115,6 +146,9 @@ int main() {
     
     path_expand(s2, s1, 1024);
     printf("    input > '%s' output > ' %s'\n", s1, s2);
+
+    printf("patching log func\n");
+    hotpatch(base + 0x0f5500, &loggamelo);
 
     printf("getting VSTPluginMain\n");
     void* (*plugin_main)(void *) = dlsym(h, "VSTPluginMain");
