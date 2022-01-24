@@ -19,3 +19,4 @@ clean:
 	rm -f test
 	rm -f test2
 	rm -f extract
+	rm -rf *.dSYM/
