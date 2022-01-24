@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
@@ -108,7 +109,7 @@ static void hotpatch(void *target, void *replacement)
     mprotect(page, 4096, PROT_EXEC);
 }
 
-void loggamelo(char *msg, ...) {
+static void loggamelo(char *msg, ...) {
     va_list valist;
 
     va_start(valist, msg);
@@ -116,9 +117,25 @@ void loggamelo(char *msg, ...) {
     va_end(valist);
 }
 
-void my_path_expand(char *dst, char *src, size_t size) {
+void hook_break_firmware() {
+    printf("hallo!\n");
+}
+
+static void my_path_expand(char *dst, char *src, size_t size) {
     printf("PATH EXPAND: %s\n", src);
-    strncpy(dst, src, size);
+
+    if (strcmp("{COMMON_APPDATA}/Access Music/Virus TI/Common/firmware.bin", src) == 0) {
+        printf("RETURNING ./firmware.bin\n");
+        strncpy(dst, "./firmware.bin", size);
+        hook_break_firmware();
+    }
+    else {
+        strncpy(dst, src, size);
+    }
+}
+
+static void my_resolve_path(char* src, char* dst) {
+    printf("my resolve path %p %p\n", src, dst);
 }
 
 int main() {
@@ -154,19 +171,79 @@ int main() {
 
     void *base = info.dli_fbase;
 
-    printf("smoke test, calling path_expand\n");
-
-    void (*path_expand)(char* dst, char* src, size_t size) = 0x00101276 + base;
-
-    char *s1 = "{COMMON_APPDATA}/abc";
-    char s2[1024] = {0};
-    
-    path_expand(s2, s1, 1024);
-    printf("    input > '%s' output > ' %s'\n", s1, s2);
-
     printf("patching log func\n");
     hotpatch(base + 0x0f5500, &loggamelo);
     hotpatch(base + 0x101276, &my_path_expand);
+    // hotpatch(base + 0x0d7db0, &my_resolve_path);
+    
+    void (*chunker_init)(void *chunker, uint8_t *buffer, int len)
+        = base + 0x10244c;
+
+    int (*chunker_chunk_count)(void *chunker)
+        = base + 0x1024fe;
+
+    int (*chunker_chunk_2)(void *chunker, uint8_t **out1, uint8_t **out2, int param4)
+        = base + 0x102488;
+
+
+    struct {
+        uint8_t impl[0x100];
+        uint32_t canary;
+    } chunker = {
+        { 0 },
+        0xdeadbeef
+    };
+
+
+    char *filename = false ? "real-firmware.bin" : "vti_2.bin";
+    FILE *file = fopen(filename, "r");
+    fseek(file, 0, SEEK_END);
+
+    int len = ftell(file);
+    void *fw = malloc(len);
+
+    fseek(file, 0, SEEK_SET);
+    fread(fw, len, 1, file);
+    fclose(file);
+
+    printf("firmware len: %d\n", len);
+
+    chunker_init(&chunker, fw, len);
+
+    if (chunker.canary != 0xdeadbeef) {
+        printf("M O R T O\n");
+        return 0;
+    }
+
+    int nrr = chunker_chunk_count(&chunker);
+    printf("nr chunks %d\n", nrr);
+
+    if (chunker.canary != 0xdeadbeef) {
+        printf("M O R T O\n");
+        return 0;
+    }
+
+    uint8_t *out1 = 0;
+    uint8_t *out2 = 0;
+
+    int chunk_len = chunker_chunk_2(&chunker, &out1, &out2, 0);
+
+    if (chunker.canary != 0xdeadbeef) {
+        printf("M O R T O\n");
+        return 0;
+    }
+
+    printf("chunk len: %d\n", chunk_len);
+    printf("out1 %p out2 %p\n", out1, out2);
+    printf("out 1: %s\n", out1);
+    printf("out 2: ");
+
+    for (int i = 0; i < 0x10; i++)
+        printf("%02x ", out2[i]);
+
+    printf("\n");
+
+    return 0;
 
     printf("getting VSTPluginMain\n");
     void* (*plugin_main)(void *) = dlsym(h, "VSTPluginMain");
@@ -184,6 +261,20 @@ int main() {
 
     plug->setParameter = set_parameter;
     plug->getParameter = get_parameter;
+
+    uintptr_t br = 0x01024fe;
+    uintptr_t rebased = br + base;
+
+    printf("\n");
+    printf("--------------------------------------------------\n");
+    printf("\n");
+    printf("  BREAK IN: %p -- %p\n", br, rebased);
+    printf("\n");
+    printf("    br set -a %p\n", rebased);
+    printf("\n");
+    printf("--------------------------------------------------\n");
+    printf("\n");
+
 
     printf("opening plugin\n");
     plug->dispatcher(plug, 0 /* effOpen */, 0, 0, NULL, 0);
