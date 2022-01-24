@@ -1,7 +1,7 @@
 CFLAGS := -g
 CXXFLAGS := -g
 
-all: test viruscontrol-mod.dylib
+all: test extract viruscontrol-mod.dylib
 
 virusclient-fake.dylib: virusclient.cpp
 	$(CXX) -o $@ -shared $<
